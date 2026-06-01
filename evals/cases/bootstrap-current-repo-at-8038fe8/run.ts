@@ -14,10 +14,10 @@ import {
 } from "../../lib/common.js";
 import { runCodexAgent } from "../../../libs/agent-runner/codex.js";
 import type { AgentRunResult } from "../../../libs/agent-runner/types.js";
+import { loadRepoEnv } from "../../../libs/env/load-local-env.js";
 
-const caseId = "bootstrap-current-repo-at-1872222";
-const targetRepoUrl = "git@github.com:Autoloops/engineering-context.git";
-const targetCommit = "1872222671c85b347950462bc65ef3da3611ed6e";
+const caseId = "bootstrap-current-repo-at-8038fe8";
+const targetCommit = "8038fe8c82c3cf7c9175c188f503aa0df72d2fa2";
 
 interface Args {
   proposal?: string;
@@ -31,10 +31,11 @@ interface RunContext {
   repoRoot: string;
   runDir: string;
   targetRepoDir: string;
-  ecHomeDir: string;
+  targetRepoUrl: string;
+  greplicaHomeDir: string;
   proposalPath: string;
   rubricPath: string;
-  ecCommand: string[];
+  greplicaCommand: string[];
 }
 
 interface EvalResult {
@@ -43,7 +44,7 @@ interface EvalResult {
   target_commit: string;
   run_dir: string;
   target_repo_dir: string;
-  ec_home_dir: string;
+  greplica_home_dir: string;
   proposal_path: string;
   success: boolean;
   commands: CommandResult[];
@@ -134,7 +135,7 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const context = prepareRun();
   prepareTargetRepo(context);
-  prepareEcHome(context);
+  prepareGreplicaHome(context);
   const initCommand = runProductCommand(context, "init");
   const generation = await getProposal(context, args);
   const commands = [
@@ -156,12 +157,14 @@ async function main(): Promise<void> {
 
 function prepareRun(): RunContext {
   const repoRoot = findRepoRoot(import.meta.url);
+  loadRepoEnv(repoRoot);
   const runDir = resolve(repoRoot, "eval-runs", timestamp(), caseId);
   const targetRepoDir = resolve(runDir, "target-repo");
-  const ecHomeDir = resolve(runDir, "ec-home");
+  const targetRepoUrl = process.env.GREPLICA_EVAL_TARGET_REPO_URL ?? repoRoot;
+  const greplicaHomeDir = resolve(runDir, "greplica-home");
   const proposalPath = resolve(runDir, "proposal.json");
-  const rubricPath = resolve(repoRoot, "evals/cases/bootstrap-current-repo-at-1872222/rubric.json");
-  const ecCommand = ["node", resolve(repoRoot, "dist/apps/cli/main.js")];
+  const rubricPath = resolve(repoRoot, "evals/cases/bootstrap-current-repo-at-8038fe8/rubric.json");
+  const greplicaCommand = ["node", resolve(repoRoot, "dist/apps/cli/main.js")];
 
   mkdirSync(runDir, { recursive: true });
 
@@ -169,20 +172,21 @@ function prepareRun(): RunContext {
     repoRoot,
     runDir,
     targetRepoDir,
-    ecHomeDir,
+    targetRepoUrl,
+    greplicaHomeDir,
     proposalPath,
     rubricPath,
-    ecCommand,
+    greplicaCommand,
   };
 }
 
 function prepareTargetRepo(context: RunContext): void {
-  runOrThrow(["git", "clone", targetRepoUrl, context.targetRepoDir], context.repoRoot);
+  runOrThrow(["git", "clone", context.targetRepoUrl, context.targetRepoDir], context.repoRoot);
   runOrThrow(["git", "checkout", targetCommit], context.targetRepoDir);
 }
 
-function prepareEcHome(context: RunContext): void {
-  mkdirSync(context.ecHomeDir, { recursive: true });
+function prepareGreplicaHome(context: RunContext): void {
+  mkdirSync(context.greplicaHomeDir, { recursive: true });
 }
 
 async function getProposal(context: RunContext, args: Args): Promise<AgentRunResult | undefined> {
@@ -195,7 +199,7 @@ async function getProposal(context: RunContext, args: Args): Promise<AgentRunRes
     const model = args.agentModel ?? "gpt-5.4-mini";
     const result = await runCodexAgent({
       cwd: context.targetRepoDir,
-      env: { ...process.env, ENGINEERING_CONTEXT_HOME: context.ecHomeDir },
+      env: { ...process.env, GREPLICA_HOME: context.greplicaHomeDir },
       model,
       prompt: codexBootstrapPrompt(context),
       transcriptPath: resolve(context.runDir, "agent-events.jsonl"),
@@ -216,16 +220,16 @@ async function getProposal(context: RunContext, args: Args): Promise<AgentRunRes
 
 function runProductCommands(context: RunContext): CommandResult[] {
   const commands = [
-    [...context.ecCommand, "proposal", "validate", context.proposalPath],
-    [...context.ecCommand, "proposal", "apply", context.proposalPath],
+    [...context.greplicaCommand, "proposal", "validate", context.proposalPath],
+    [...context.greplicaCommand, "proposal", "apply", context.proposalPath],
   ];
 
-  return commands.map((command) => runProductCommand(context, ...command.slice(context.ecCommand.length)));
+  return commands.map((command) => runProductCommand(context, ...command.slice(context.greplicaCommand.length)));
 }
 
 function runProductCommand(context: RunContext, ...args: string[]): CommandResult {
-  const env = { ...process.env, ENGINEERING_CONTEXT_HOME: context.ecHomeDir };
-  return run([...context.ecCommand, ...args], context.targetRepoDir, env, { stdio: "inherit" });
+  const env = { ...process.env, GREPLICA_HOME: context.greplicaHomeDir };
+  return run([...context.greplicaCommand, ...args], context.targetRepoDir, env, { stdio: "inherit" });
 }
 
 async function runOpenAiJudge(
@@ -270,11 +274,11 @@ function writeResult(
 ): void {
   const result: EvalResult = {
     case_id: caseId,
-    target_repo_url: targetRepoUrl,
+    target_repo_url: context.targetRepoUrl,
     target_commit: targetCommit,
     run_dir: context.runDir,
     target_repo_dir: context.targetRepoDir,
-    ec_home_dir: context.ecHomeDir,
+    greplica_home_dir: context.greplicaHomeDir,
     proposal_path: context.proposalPath,
     success,
     commands,
@@ -305,30 +309,30 @@ function parseArgs(args: string[]): Args {
 }
 
 function codexBootstrapPrompt(context: RunContext): string {
-  const skill = readFileSync(resolve(context.repoRoot, "skills/ec-bootstrap/SKILL.md"), "utf8");
-  const ec = context.ecCommand.join(" ");
+  const skill = readFileSync(resolve(context.repoRoot, "skills/greplica-bootstrap/SKILL.md"), "utf8");
+  const greplica = context.greplicaCommand.join(" ");
 
-  return `You are running an Engineering Context bootstrap workflow for this repository.
+  return `You are running a Greplica bootstrap workflow for this repository.
 
 Use this exact user-facing skill as the workflow contract:
 
-<ec_bootstrap_skill>
+<greplica_bootstrap_skill>
 ${skill}
-</ec_bootstrap_skill>
+</greplica_bootstrap_skill>
 
 Runtime facts for this eval:
 - Current working directory is the target repository root.
-- ENGINEERING_CONTEXT_HOME is already set to an isolated eval directory.
-- Use this ec command exactly: ${ec}
+- GREPLICA_HOME is already set to an isolated eval directory.
+- Use this greplica command exactly: ${greplica}
 - Write the final proposal JSON exactly here: ${context.proposalPath}
-- If this repository contains any skills/*/SKILL.md files, including a legacy skills/engineering-memory/SKILL.md file, treat those files as part of the repository being bootstrapped. Do not ignore skill files just because the bootstrap skill content is included above as the workflow contract.
+- If this repository contains any skills/*/SKILL.md files, treat those files as part of the repository being bootstrapped. Do not ignore skill files just because the bootstrap skill content is included above as the workflow contract.
 - If this repository contains graph schema/type/model files that define components, flows, claims, edges, scopes, memberships, or commits, consider whether they are important top-level memory.
 
 Task:
 1. Run the skill workflow for bootstrap memory on this repo.
 2. Inspect the repo shallowly. Prefer top-level components, flows, and durable claims.
 3. Create a compact proposal JSON at ${context.proposalPath}.
-4. Validate it with: ${ec} proposal validate ${context.proposalPath}
+4. Validate it with: ${greplica} proposal validate ${context.proposalPath}
 5. Fix validation errors until valid.
 6. Do not apply the proposal.
 
@@ -348,7 +352,7 @@ async function requestJudge(apiKey: string, model: string, input: JudgeInput): P
         {
           role: "system",
           content:
-            "You are an evaluator for Engineering Context bootstrap proposals. Return JSON only. Classify expected nodes, expected edges, and quality issues. Do not calculate numeric scores.",
+            "You are an evaluator for Greplica bootstrap proposals. Return JSON only. Classify expected nodes, expected edges, and quality issues. Do not calculate numeric scores.",
         },
         {
           role: "user",

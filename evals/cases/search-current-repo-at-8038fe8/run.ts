@@ -8,20 +8,25 @@ import {
   readJson,
   round,
   run,
+  runOrThrow,
   timestamp,
   writeJson,
 } from "../../lib/common.js";
+import { loadRepoEnv } from "../../../libs/env/load-local-env.js";
 
-const caseId = "search-current-repo";
+const caseId = "search-current-repo-at-8038fe8";
+const targetCommit = "8038fe8c82c3cf7c9175c188f503aa0df72d2fa2";
 const allowedResultTypes = new Set(["component", "flow", "claim"]);
 
 interface RunContext {
   repoRoot: string;
   runDir: string;
-  ecHomeDir: string;
+  targetRepoDir: string;
+  targetRepoUrl: string;
+  greplicaHomeDir: string;
   proposalPath: string;
   rubricPath: string;
-  ecCommand: string[];
+  greplicaCommand: string[];
 }
 
 interface SearchRubric {
@@ -94,7 +99,8 @@ interface EvalResult {
     branch: string;
   };
   run_dir: string;
-  ec_home_dir: string;
+  target_repo_dir: string;
+  greplica_home_dir: string;
   proposal_path: string;
   rubric_path: string;
   setup_commands: CommandResult[];
@@ -112,6 +118,7 @@ try {
 
 function main(): void {
   const context = prepareRun();
+  prepareTargetRepo(context);
   const rubric = readJson<SearchRubric>(context.rubricPath);
   validateRubric(rubric);
 
@@ -140,20 +147,30 @@ function main(): void {
 
 function prepareRun(): RunContext {
   const repoRoot = findRepoRoot(import.meta.url);
+  loadRepoEnv(repoRoot);
   const runDir = resolve(repoRoot, "eval-runs", timestamp(), caseId);
-  const ecHomeDir = resolve(runDir, "ec-home");
+  const targetRepoDir = resolve(runDir, "target-repo");
+  const targetRepoUrl = process.env.GREPLICA_EVAL_TARGET_REPO_URL ?? repoRoot;
+  const greplicaHomeDir = resolve(runDir, "greplica-home");
 
   mkdirSync(runDir, { recursive: true });
-  mkdirSync(ecHomeDir, { recursive: true });
+  mkdirSync(greplicaHomeDir, { recursive: true });
 
   return {
     repoRoot,
     runDir,
-    ecHomeDir,
-    proposalPath: resolve(repoRoot, "evals/cases/search-current-repo/proposal.json"),
-    rubricPath: resolve(repoRoot, "evals/cases/search-current-repo/rubric.json"),
-    ecCommand: ["node", resolve(repoRoot, "dist/apps/cli/main.js")],
+    targetRepoDir,
+    targetRepoUrl,
+    greplicaHomeDir,
+    proposalPath: resolve(repoRoot, "evals/cases/search-current-repo-at-8038fe8/proposal.json"),
+    rubricPath: resolve(repoRoot, "evals/cases/search-current-repo-at-8038fe8/rubric.json"),
+    greplicaCommand: ["node", resolve(repoRoot, "dist/apps/cli/main.js")],
   };
+}
+
+function prepareTargetRepo(context: RunContext): void {
+  runOrThrow(["git", "clone", context.targetRepoUrl, context.targetRepoDir], context.repoRoot);
+  runOrThrow(["git", "checkout", targetCommit], context.targetRepoDir);
 }
 
 function runQuery(context: RunContext, rubric: SearchRubric, queryCase: SearchQueryCase): QueryScore {
@@ -323,12 +340,13 @@ function writeResult(
     case_id: rubric.case_id,
     benchmark_version: rubric.benchmark_version,
     target_repo: {
-      remote_url: gitOptional(context.repoRoot, ["config", "--get", "remote.origin.url"]) ?? `local:${context.repoRoot}`,
-      commit: git(context.repoRoot, ["rev-parse", "HEAD"]),
-      branch: gitOptional(context.repoRoot, ["branch", "--show-current"]) ?? "",
+      remote_url: context.targetRepoUrl,
+      commit: git(context.targetRepoDir, ["rev-parse", "HEAD"]),
+      branch: gitOptional(context.targetRepoDir, ["branch", "--show-current"]) ?? "",
     },
     run_dir: context.runDir,
-    ec_home_dir: context.ecHomeDir,
+    target_repo_dir: context.targetRepoDir,
+    greplica_home_dir: context.greplicaHomeDir,
     proposal_path: context.proposalPath,
     rubric_path: context.rubricPath,
     setup_commands: setupCommands,
@@ -341,9 +359,9 @@ function writeResult(
 }
 
 function runProductCommand(context: RunContext, ...args: string[]): CommandResult {
-  return run([...context.ecCommand, ...args], context.repoRoot, {
+  return run([...context.greplicaCommand, ...args], context.targetRepoDir, {
     ...process.env,
-    ENGINEERING_CONTEXT_HOME: context.ecHomeDir,
+    GREPLICA_HOME: context.greplicaHomeDir,
   });
 }
 

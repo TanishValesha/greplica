@@ -1,11 +1,11 @@
 {
   "title": "Deep search benchmark memory fixture",
-  "summary": "Synthetic deep graph memory for evaluating search retrieval over the current engineering-context repo. This fixture is intentionally richer than bootstrap memory and is not a model for shallow bootstrap output.",
+  "summary": "Synthetic deep graph memory for evaluating search retrieval over the current greplica repo. This fixture is intentionally richer than bootstrap memory and is not a model for shallow bootstrap output.",
   "creates": {
     "components": [
       {
         "id": "component.cli_app",
-        "name": "Engineering Context CLI",
+        "name": "Greplica CLI",
         "code_anchor": "apps/cli/main.ts",
         "contains": [
           "component.cli_init_command",
@@ -125,17 +125,17 @@
       {
         "id": "component.bootstrap_eval_runner",
         "name": "Bootstrap eval runner",
-        "code_anchor": "evals/cases/bootstrap-current-repo-at-1872222/run.ts"
+        "code_anchor": "evals/cases/bootstrap-current-repo-at-8038fe8/run.ts"
       },
       {
         "id": "component.bootstrap_eval_rubric",
         "name": "Bootstrap eval rubric",
-        "code_anchor": "evals/cases/bootstrap-current-repo-at-1872222/rubric.json"
+        "code_anchor": "evals/cases/bootstrap-current-repo-at-8038fe8/rubric.json"
       },
       {
-        "id": "component.engineering_memory_skill",
-        "name": "Engineering memory skill",
-        "code_anchor": "skills/engineering-memory/SKILL.md"
+        "id": "component.greplica_skills",
+        "name": "Greplica skills",
+        "code_anchor": "skills/greplica-bootstrap/SKILL.md"
       },
       {
         "id": "component.package_scripts",
@@ -145,7 +145,7 @@
       {
         "id": "component.search_eval_fixture",
         "name": "Search eval synthetic fixture",
-        "code_anchor": "evals/cases/search-current-repo/proposal.json"
+        "code_anchor": "evals/cases/search-current-repo-at-8038fe8/proposal.json"
       }
     ],
     "flows": [
@@ -283,7 +283,7 @@
         "touches": [
           "component.bootstrap_eval_runner",
           "component.agent_runner_codex",
-          "component.engineering_memory_skill"
+          "component.greplica_skills"
         ]
       },
       {
@@ -296,10 +296,10 @@
         ]
       },
       {
-        "id": "flow.engineering_memory_bootstrap",
-        "name": "Engineering memory skill guides shallow repo inspection and validated proposal creation",
+        "id": "flow.greplica_memory_bootstrap",
+        "name": "Greplica skills guide shallow repo inspection and validated proposal creation",
         "touches": [
-          "component.engineering_memory_skill",
+          "component.greplica_skills",
           "component.cli_app",
           "component.cli_graph_read_command",
           "component.cli_proposal_commands"
@@ -307,7 +307,7 @@
       },
       {
         "id": "flow.local_database_isolation",
-        "name": "ENGINEERING_CONTEXT_HOME isolates local SQLite database state",
+        "name": "GREPLICA_HOME isolates local SQLite database state",
         "touches": [
           "component.sqlite_database",
           "component.bootstrap_eval_runner",
@@ -769,9 +769,9 @@
         ]
       },
       {
-        "id": "claim.database_path_uses_engineering_context_home",
+        "id": "claim.database_path_uses_greplica_home",
         "kind": "fact",
-        "text": "The default SQLite database lives under ENGINEERING_CONTEXT_HOME when that environment variable is set, otherwise it uses the user's .engineering-context directory.",
+        "text": "The default SQLite database lives under GREPLICA_HOME when that environment variable is set, otherwise it uses the user's .greplica directory.",
         "truth": "code_verified",
         "intent": "intended",
         "about": [
@@ -782,7 +782,7 @@
       {
         "id": "claim.package_eval_scripts_invoke_isolated_eval_runners",
         "kind": "fact",
-        "text": "Package eval scripts invoke built eval runners, and those runners set ENGINEERING_CONTEXT_HOME to run-specific ec-home directories for isolated local database state.",
+        "text": "Package eval scripts invoke built eval runners, and those runners set GREPLICA_HOME to run-specific greplica-home directories for isolated local database state.",
         "truth": "code_verified",
         "intent": "intended",
         "about": [
@@ -872,35 +872,35 @@
         ]
       },
       {
-        "id": "claim.engineering_memory_skill_runs_init_and_read",
+        "id": "claim.greplica_skills_run_doctor_and_read",
         "kind": "fact",
-        "text": "The engineering-memory skill tells agents to run ec init and ec graph read before inspecting and proposing memory updates.",
+        "text": "The Greplica skills tell agents to run greplica doctor and inspect existing memory with greplica graph read or greplica graph context before proposing memory updates.",
         "truth": "source_verified",
         "intent": "intended",
         "about": [
-          "component.engineering_memory_skill",
-          "flow.engineering_memory_bootstrap"
+          "component.greplica_skills",
+          "flow.greplica_memory_bootstrap"
         ]
       },
       {
-        "id": "claim.engineering_memory_skill_prefers_shallow_high_signal",
+        "id": "claim.greplica_skills_prefers_shallow_high_signal",
         "kind": "fact",
-        "text": "The engineering-memory skill prefers shallow high-signal memory, important subsystems, and human workflows over exhaustive function-level traces.",
+        "text": "The Greplica skills prefer shallow high-signal memory, important subsystems, and human workflows over exhaustive function-level traces.",
         "truth": "source_verified",
         "intent": "intended",
         "about": [
-          "component.engineering_memory_skill",
-          "flow.engineering_memory_bootstrap"
+          "component.greplica_skills",
+          "flow.greplica_memory_bootstrap"
         ]
       },
       {
-        "id": "claim.engineering_memory_skill_validates_before_apply",
+        "id": "claim.greplica_skills_validate_before_apply",
         "kind": "fact",
-        "text": "The engineering-memory skill instructs agents to validate proposals and only apply when explicitly asked.",
+        "text": "The Greplica skills instruct agents to validate proposals and only apply when explicitly asked.",
         "truth": "source_verified",
         "intent": "intended",
         "about": [
-          "component.engineering_memory_skill",
+          "component.greplica_skills",
           "component.cli_proposal_commands"
         ]
       },
@@ -913,9 +913,9 @@
         "about": "component.package_scripts"
       },
       {
-        "id": "claim.package_exposes_ec_binary",
+        "id": "claim.package_exposes_greplica_binary",
         "kind": "fact",
-        "text": "The package exposes an ec binary that points to dist/apps/cli/main.js.",
+        "text": "The package exposes a greplica binary that points to dist/apps/cli/main.js.",
         "truth": "code_verified",
         "intent": "intended",
         "about": [

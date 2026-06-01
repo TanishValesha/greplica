@@ -1,5 +1,5 @@
 {
-  "case_id": "search-current-repo",
+  "case_id": "search-current-repo-at-8038fe8",
   "benchmark_version": "0.2.0",
   "target": "current workspace repo",
   "k": 10,
@@ -282,10 +282,10 @@
     },
     {
       "id": "q15_database_home",
-      "query": "I am making eval scripts isolate their local database and need to understand how package eval entrypoints, runners, and ENGINEERING_CONTEXT_HOME fit together.",
+      "query": "I am making eval scripts isolate their local database and need to understand how package eval entrypoints, runners, and GREPLICA_HOME fit together.",
       "highly_relevant": [
         "flow:flow.local_database_isolation",
-        "claim:claim.database_path_uses_engineering_context_home",
+        "claim:claim.database_path_uses_greplica_home",
         "claim:claim.package_eval_scripts_invoke_isolated_eval_runners"
       ],
       "relevant": [
@@ -341,7 +341,7 @@
       "relevant": [
         "component:component.bootstrap_eval_runner",
         "claim:claim.agent_runner_spawns_codex",
-        "component:component.engineering_memory_skill"
+        "component:component.greplica_skills"
       ],
       "weakly_relevant": []
     },
@@ -362,16 +362,16 @@
       ]
     },
     {
-      "id": "q20_engineering_memory_skill",
-      "query": "I am updating the engineering-memory skill and need to understand the intended bootstrap workflow it tells agents to follow.",
+      "id": "q20_greplica_skills",
+      "query": "I am updating the Greplica skills and need to understand the intended bootstrap workflow it tells agents to follow.",
       "highly_relevant": [
-        "component:component.engineering_memory_skill",
-        "flow:flow.engineering_memory_bootstrap",
-        "claim:claim.engineering_memory_skill_runs_init_and_read"
+        "component:component.greplica_skills",
+        "flow:flow.greplica_memory_bootstrap",
+        "claim:claim.greplica_skills_run_doctor_and_read"
       ],
       "relevant": [
-        "claim:claim.engineering_memory_skill_prefers_shallow_high_signal",
-        "claim:claim.engineering_memory_skill_validates_before_apply",
+        "claim:claim.greplica_skills_prefers_shallow_high_signal",
+        "claim:claim.greplica_skills_validate_before_apply",
         "component:component.cli_proposal_commands"
       ],
       "weakly_relevant": [
@@ -380,11 +380,11 @@
     },
     {
       "id": "q21_package_build",
-      "query": "I am changing the build setup and need to know how the package compiles and exposes the ec command.",
+      "query": "I am changing the build setup and need to know how the package compiles and exposes the greplica command.",
       "highly_relevant": [
         "component:component.package_scripts",
         "claim:claim.package_build_compiles_apps_libs_evals",
-        "claim:claim.package_exposes_ec_binary"
+        "claim:claim.package_exposes_greplica_binary"
       ],
       "relevant": [
         "component:component.cli_app"
@@ -605,7 +605,7 @@
       "highly_relevant": [
         "flow:flow.local_database_isolation",
         "claim:claim.package_eval_scripts_invoke_isolated_eval_runners",
-        "claim:claim.database_path_uses_engineering_context_home"
+        "claim:claim.database_path_uses_greplica_home"
       ],
       "relevant": [
         "component:component.bootstrap_eval_runner",

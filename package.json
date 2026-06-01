@@ -10,8 +10,8 @@
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build",
     "typecheck": "tsc --noEmit",
-    "eval:bootstrap-current": "npm run build && node dist/evals/cases/bootstrap-current-repo-at-1872222/run.js",
-    "eval:search-current": "npm run build && node dist/evals/cases/search-current-repo/run.js"
+    "eval:bootstrap-current": "npm run build && node dist/evals/cases/bootstrap-current-repo-at-8038fe8/run.js",
+    "eval:search-current": "npm run build && node dist/evals/cases/search-current-repo-at-8038fe8/run.js"
   },
   "files": [
     "dist",

@@ -1,0 +1,343 @@
+{
+  "case_id": "bootstrap-current-repo-at-8038fe8",
+  "target_repo_url": "local-current-repo",
+  "target_commit": "8038fe8c82c3cf7c9175c188f503aa0df72d2fa2",
+  "score": {
+    "pass_threshold": 80,
+    "node_coverage_points": 50,
+    "edge_coverage_points": 15,
+    "quality_points": 35,
+    "quality_penalties": {
+      "noisy_structure_node_points": 3,
+      "noisy_structure_node_max": 12,
+      "bad_claim_points": 4,
+      "bad_claim_max": 16,
+      "bad_anchor_points": 3,
+      "bad_anchor_max": 9,
+      "depth_violation_points": 8,
+      "weak_graph_linking_points": 8
+    }
+  },
+  "judge": {
+    "instructions": [
+      "Judge whether the proposal is a good shallow bootstrap memory graph for this exact repo commit.",
+      "Do not compute a numeric score. Only classify expected nodes, expected edges, and quality issues.",
+      "Judge semantic equivalence, not exact IDs or exact wording.",
+      "A node can satisfy an expected item if it clearly represents the same concept, even with a different ID.",
+      "An edge can satisfy an expected relation if the proposal connects the same semantic subjects through inline compact fields or canonical edges.",
+      "Compact relationship fields are graph edges: flow.touches creates Flow -> Component touches edges, claim.about creates Claim -> Component/Flow about edges, component.contains creates Component -> Component contains edges, and flow.contains creates Flow -> Flow contains edges.",
+      "When judging expected edges, inspect compact relationship arrays directly. Do not require a separate creates.edges entry.",
+      "Do not mark a real existing source file or source folder as a bad anchor merely because it is broad. Bad anchors are fake paths, generated/dependency paths, .git paths, or useless anchors like the repo root.",
+      "Do not mark a combined top-level component as noisy merely because a more detailed rubric has separate expected nodes. Missing specificity belongs in node coverage, not quality penalties.",
+      "Penalize depth only when the proposal is clearly doing a deep audit instead of top-level bootstrap.",
+      "The proposal should be useful to a future coding agent that needs to understand this repo quickly."
+    ],
+    "actual_repo_facts": [
+      "This repo is a small TypeScript project named greplica.",
+      "The package exposes a greplica binary that points to dist/apps/cli/main.js.",
+      "The TypeScript build compiles apps, libs, and evals into dist using tsconfig.build.json.",
+      "README.md documents Greplica setup, the greplica command, GREPLICA_HOME, and the two bundled skills.",
+      "apps/cli/main.ts is the CLI entrypoint and dispatches commands by argv.",
+      "apps/cli/main.ts imports createLocalKnowledgeGraphService from libs/knowledge-graph/service.ts.",
+      "apps/cli/main.ts imports detectRepoContext from apps/cli/repo-context.ts.",
+      "apps/cli/main.ts imports loadRepoEnv/envVarSource from libs/env/load-local-env.ts.",
+      "The CLI supports greplica init.",
+      "greplica init detects repo context, calls service.initRepo, and prints repo/default branch/database/scope information.",
+      "The CLI supports greplica doctor [--check-openai].",
+      "greplica doctor detects repo context, initializes memory, reports OPENAI_API_KEY source or missing setup, and can smoke-test OpenAI embeddings.",
+      "The CLI supports greplica graph read.",
+      "greplica graph read detects repo context, calls service.readGraph, and prints components, flows, claims, sources, and edges.",
+      "The CLI supports greplica graph context <query>.",
+      "greplica graph context requires a non-empty query, calls service.contextGraph, and prints graph context JSON.",
+      "The CLI supports greplica proposal validate <file>.",
+      "greplica proposal validate reads a proposal JSON file, calls service.validateProposal, and reports validation errors.",
+      "The CLI supports greplica proposal apply <file>.",
+      "greplica proposal apply reads a proposal JSON file, calls service.applyProposal, prints created object counts, and reports embedding counts.",
+      "The CLI is intentionally a thin local client: argument routing, file reading, repo detection, env loading, and human text output live there.",
+      "apps/cli/repo-context.ts uses git commands to detect the repo root.",
+      "apps/cli/repo-context.ts reads remote.origin.url when available and falls back to local:<repoRoot>.",
+      "apps/cli/repo-context.ts derives repo_name from the remote URL or local root basename.",
+      "apps/cli/repo-context.ts derives default_branch from refs/remotes/origin/HEAD and falls back to main.",
+      "libs/env/load-local-env.ts loads OPENAI_API_KEY from the process environment, repo-root .env.local, or repo-root .env without overwriting existing env values.",
+      "libs/knowledge-graph/service.ts defines KnowledgeGraphService as the boundary the CLI calls for graph operations.",
+      "KnowledgeGraphService.initRepo upserts a repo and ensures a main scope and a working scope.",
+      "The main scope is named with the repo default branch.",
+      "The working scope is named working and parented to the main scope.",
+      "KnowledgeGraphService.readGraph loads the repo by remote URL and asks the repository for the current graph view.",
+      "KnowledgeGraphService.contextGraph loads the repo by remote URL and builds a ranked graph context result for the query.",
+      "KnowledgeGraphService.validateProposal normalizes compact proposal input before validating it.",
+      "KnowledgeGraphService.applyProposal normalizes the proposal, validates it, requires the working scope, creates a memory commit, writes proposal records, and ensures graph-object embeddings.",
+      "createLocalKnowledgeGraphService wires KnowledgeGraphService to SqliteRepository and openDatabase.",
+      "libs/knowledge-graph/graph-context/context-builder.ts builds graph context results over claims, components, and flows.",
+      "Graph context retrieval combines semantic embeddings, BM25, exact matching, and graph relationship boosts.",
+      "Graph context embeddings use OpenAIEmbedder and require OPENAI_API_KEY when missing embeddings must be created.",
+      "libs/knowledge-graph/proposal.ts defines the canonical MemoryCommitProposal shape.",
+      "A proposal can create components, flows, claims, sources, and edges.",
+      "proposal.ts also defines compact proposal types that allow relationships inline on components, flows, and claims.",
+      "Compact component relationship fields include contains and supersedes.",
+      "Compact flow relationship fields include contains, touches, and supersedes.",
+      "Compact claim relationship fields include about, evidenced_by, and supersedes.",
+      "normalizeProposal removes compact relationship fields from nodes and converts them into canonical Edge records.",
+      "normalizeProposal generates deterministic edge IDs from kind/from/to fields and deduplicates generated edges by edge ID.",
+      "libs/knowledge-graph/validate-proposal.ts validates proposal structure, graph object fields, endpoint existence, and allowed edge directions.",
+      "Allowed claim kinds are fact, requirement, decision, task, question, and risk.",
+      "Allowed claim truth values are code_verified, source_verified, and unknown.",
+      "Allowed claim intent values are intended, accidental, and unknown.",
+      "Allowed source kinds currently include session, prd, doc, issue, pr, artifact, and code.",
+      "libs/knowledge-graph/edge.ts defines allowed edge kinds: about, contains, touches, supersedes, and evidenced_by.",
+      "libs/knowledge-graph/schema.ts defines graph IDs, Component, Flow, Source, GraphObjectType, and MembershipSubjectType.",
+      "libs/knowledge-graph/claim.ts defines ClaimKind, ClaimTruth, ClaimIntent, and Claim.",
+      "libs/knowledge-graph/scope.ts defines GraphScopeKind, GraphScope, and GraphMembership.",
+      "libs/knowledge-graph/commit.ts defines MemoryCommit.",
+      "libs/storage/sqlite/db.ts opens the local SQLite database.",
+      "The default SQLite database lives under GREPLICA_HOME when set.",
+      "If GREPLICA_HOME is not set, libs/storage/sqlite/db.ts still accepts legacy ENGINEERING_CONTEXT_HOME before falling back to ~/.greplica.",
+      "libs/storage/sqlite/schema.ts defines tables for repos, graph_scopes, memory_commits, components, flows, claims, sources, edges, graph_memberships, and graph_object_embeddings.",
+      "The graph_memberships table links scope_id, subject_type, subject_id, and memory_commit_id.",
+      "MembershipSubjectType excludes source; memberships are for component, flow, claim, and edge.",
+      "SqliteRepository.upsertRepo creates deterministic repo IDs from the remote URL.",
+      "SqliteRepository.ensureScope creates deterministic scope IDs from repo, kind, and name.",
+      "SqliteRepository.requireWorkingScope finds the working scope for a repo.",
+      "SqliteRepository.createMemoryCommit creates a new memory commit and links it to the previous commit in the same scope.",
+      "SqliteRepository.createProposalRecords inserts graph objects and creates graph memberships for components, flows, claims, and edges.",
+      "SqliteRepository.createProposalRecords inserts sources globally without graph memberships.",
+      "SqliteRepository.readGraphView reads current main and working scopes, loads active memberships, filters inactive edges, and removes superseded subjects from the active view.",
+      "SqliteRepository stores graph_object_embeddings keyed by repo, object type, object id, provider, model, and dimensions.",
+      "skills/greplica-bootstrap/SKILL.md bootstraps initial Greplica memory for a repository.",
+      "skills/greplica-update-working-memory/SKILL.md updates Greplica working memory from a coding-agent session.",
+      "The bootstrap skill tells agents to run greplica doctor, inspect the repo shallowly, create high-signal memory, validate it, and apply it.",
+      "The update skill tells agents to inspect session changes, reuse existing memory with greplica graph context, store durable decisions/facts/tasks, validate, and apply.",
+      "The skills say bootstrap memory should be shallow and high-signal, not exhaustive.",
+      "The skills say sources are external artifacts and should not be created just because code was inspected during bootstrap."
+    ],
+    "expected_nodes": [
+      {
+        "id": "component.cli_app",
+        "kind": "component",
+        "description": "Greplica CLI app that exposes doctor, init, graph read/context, and proposal validate/apply commands."
+      },
+      {
+        "id": "component.repo_context_detection",
+        "kind": "component",
+        "description": "Repo context detection from Git root, remote URL, repo name, and default branch."
+      },
+      {
+        "id": "component.env_loading",
+        "kind": "component",
+        "description": "Repo-local environment loading for OPENAI_API_KEY from env, .env.local, and .env."
+      },
+      {
+        "id": "component.knowledge_graph_service",
+        "kind": "component",
+        "description": "KnowledgeGraphService boundary for init, read, context retrieval, validation, and apply."
+      },
+      {
+        "id": "component.graph_context_retrieval",
+        "kind": "component",
+        "description": "Graph context retrieval and embedding/ranking implementation."
+      },
+      {
+        "id": "component.proposal_model",
+        "kind": "component",
+        "description": "Proposal model and compact relationship normalization."
+      },
+      {
+        "id": "component.proposal_validation",
+        "kind": "component",
+        "description": "Proposal validation for graph object fields, allowed values, references, and edge directions."
+      },
+      {
+        "id": "component.graph_schema",
+        "kind": "component",
+        "description": "Knowledge graph schema/types for components, flows, claims, sources, edges, scopes, memberships, commits, and embeddings."
+      },
+      {
+        "id": "component.sqlite_storage",
+        "kind": "component",
+        "description": "SQLite database opener, schema, migrations, repository, graph view, memory commits, and embeddings persistence."
+      },
+      {
+        "id": "component.greplica_skills",
+        "kind": "component",
+        "description": "Bundled Greplica bootstrap and working-memory update skills."
+      },
+      {
+        "id": "flow.doctor_and_init",
+        "kind": "flow",
+        "description": "Doctor/init flow detects repo context, loads env, initializes memory state, and reports setup readiness."
+      },
+      {
+        "id": "flow.graph_read_and_context",
+        "kind": "flow",
+        "description": "Graph read/context flow reads the composed graph and builds ranked context for a query."
+      },
+      {
+        "id": "flow.proposal_validation",
+        "kind": "flow",
+        "description": "Proposal validation flow normalizes compact proposal input and validates graph shape."
+      },
+      {
+        "id": "flow.proposal_apply",
+        "kind": "flow",
+        "description": "Proposal apply flow validates, creates a memory commit, writes records to working scope, and ensures embeddings."
+      },
+      {
+        "id": "flow.compact_relationships",
+        "kind": "flow",
+        "description": "Compact relationship fields become canonical graph edges."
+      },
+      {
+        "id": "flow.greplica_skill_workflows",
+        "kind": "flow",
+        "description": "Greplica skills guide shallow bootstrap and durable working-memory update workflows."
+      },
+      {
+        "id": "claim.cli_thin_client",
+        "kind": "claim",
+        "description": "CLI is a thin local client over KnowledgeGraphService and repo/env setup helpers."
+      },
+      {
+        "id": "claim.doctor_checks_env_and_embeddings",
+        "kind": "claim",
+        "description": "Doctor initializes memory, reports OPENAI_API_KEY source, and optionally checks OpenAI embeddings."
+      },
+      {
+        "id": "claim.repo_context_git",
+        "kind": "claim",
+        "description": "Repo context detection derives remote URL, repo name, and default branch from Git with fallbacks."
+      },
+      {
+        "id": "claim.greplica_home_precedence",
+        "kind": "claim",
+        "description": "Database path prefers GREPLICA_HOME, accepts legacy ENGINEERING_CONTEXT_HOME, then defaults to ~/.greplica."
+      },
+      {
+        "id": "claim.service_boundary",
+        "kind": "claim",
+        "description": "KnowledgeGraphService owns repo init, graph read/context, proposal validation, and proposal apply operations."
+      },
+      {
+        "id": "claim.graph_context_ranking",
+        "kind": "claim",
+        "description": "Graph context combines semantic embeddings, BM25, exact matching, and graph relationship boosts."
+      },
+      {
+        "id": "claim.apply_writes_working_scope_and_embeddings",
+        "kind": "claim",
+        "description": "Proposal apply writes to the working scope through a memory commit and ensures graph-object embeddings."
+      },
+      {
+        "id": "claim.compact_normalization",
+        "kind": "claim",
+        "description": "Compact proposal fields normalize into canonical edges."
+      },
+      {
+        "id": "claim.validation_rules",
+        "kind": "claim",
+        "description": "Validation enforces allowed claim values, source kinds, edge kinds, endpoint existence, and allowed edge directions."
+      },
+      {
+        "id": "claim.active_graph_view",
+        "kind": "claim",
+        "description": "Graph read/context use active records from main plus working and remove superseded subjects from the active view."
+      },
+      {
+        "id": "claim.sources_global",
+        "kind": "claim",
+        "description": "Sources are global and graph memberships exclude sources."
+      },
+      {
+        "id": "claim.skills_shallow_workflows",
+        "kind": "claim",
+        "description": "Greplica skills instruct agents to create shallow high-signal bootstrap memory and durable session updates, then validate/apply proposals."
+      }
+    ],
+    "expected_edges": [
+      {
+        "id": "edge.doctor_init_touches_cli",
+        "from": "doctor/init flow",
+        "to": "CLI app component",
+        "description": "Doctor/init flow touches the CLI app."
+      },
+      {
+        "id": "edge.doctor_init_touches_repo_context",
+        "from": "doctor/init flow",
+        "to": "repo context detection component",
+        "description": "Doctor/init flow touches repo context detection."
+      },
+      {
+        "id": "edge.doctor_init_touches_env",
+        "from": "doctor/init flow",
+        "to": "env loading component",
+        "description": "Doctor flow touches env loading for OPENAI_API_KEY."
+      },
+      {
+        "id": "edge.doctor_init_touches_service_storage",
+        "from": "doctor/init flow",
+        "to": "KnowledgeGraphService and SQLite storage components",
+        "description": "Doctor/init flow initializes memory through the service and storage."
+      },
+      {
+        "id": "edge.graph_context_touches_service",
+        "from": "graph read/context flow",
+        "to": "KnowledgeGraphService component",
+        "description": "Graph read/context flow touches KnowledgeGraphService."
+      },
+      {
+        "id": "edge.graph_context_touches_retrieval",
+        "from": "graph read/context flow",
+        "to": "graph context retrieval component",
+        "description": "Graph context flow touches graph context retrieval."
+      },
+      {
+        "id": "edge.graph_context_touches_storage",
+        "from": "graph read/context flow",
+        "to": "SQLite storage component",
+        "description": "Graph read/context flow touches SQLite storage for graph views and embeddings."
+      },
+      {
+        "id": "edge.validate_touches_model_validation",
+        "from": "proposal validation flow",
+        "to": "proposal model/normalization and validation components",
+        "description": "Proposal validation flow touches proposal model/normalization and validation."
+      },
+      {
+        "id": "edge.apply_touches_service_storage_schema",
+        "from": "proposal apply flow",
+        "to": "KnowledgeGraphService, SQLite storage, and graph schema components",
+        "description": "Proposal apply flow touches service, storage, memory commits/schema, and graph records."
+      },
+      {
+        "id": "edge.apply_touches_graph_context",
+        "from": "proposal apply flow",
+        "to": "graph context retrieval component",
+        "description": "Proposal apply ensures embeddings used by graph context retrieval."
+      },
+      {
+        "id": "edge.compact_touches_model_schema",
+        "from": "compact relationship fields flow",
+        "to": "proposal model and graph schema components",
+        "description": "Compact relationship flow touches proposal normalization and graph edge/schema model."
+      },
+      {
+        "id": "edge.skills_touches_skills_cli_context",
+        "from": "Greplica skill workflow flow",
+        "to": "Greplica skills, CLI, proposal, and graph context components",
+        "description": "Skill workflow touches the Greplica skills and the CLI/proposal/context commands they instruct agents to use."
+      },
+      {
+        "id": "edge.claims_about_subjects",
+        "from": "important claims",
+        "to": "relevant components and/or flows",
+        "description": "Important claims are about relevant components and/or flows rather than disconnected."
+      }
+    ],
+    "quality_rules": {
+      "noisy_structure_nodes": "Components and flows that do not help top-level repo orientation, such as package-lock, tsconfig-only nodes, every tiny type file, generic source-code component, or single-helper-function flow. Do not count a real top-level subsystem as noisy only because it groups related files.",
+      "bad_claims": "Claims that are wrong, unsupported, duplicated, vague, too low-level, or not useful for future engineering work. Doctor support, GREPLICA_HOME, the legacy ENGINEERING_CONTEXT_HOME fallback, repo-local OPENAI_API_KEY loading, and graph-object embeddings are real current facts for this pinned commit.",
+      "bad_anchors": "Anchors that point to fake paths, generated output, dependency folders, .git, or a vague repo root without a strong reason. A real file or folder anchor is acceptable if it points to the code where the represented component lives.",
+      "depth_violation": "The proposal is clearly too deep for bootstrap, such as component-per-file graphing, function-level tracing, or a full code audit.",
+      "weak_graph_linking": "The proposal creates nodes but does not meaningfully connect flows to components and claims to components/flows."
+    }
+  }
+}
