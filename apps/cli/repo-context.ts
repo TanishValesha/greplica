@@ -7,6 +7,7 @@ export function detectRepoContext(cwd = process.cwd()): RepoRef {
   const remoteUrl = gitOptional(repoRoot, ["config", "--get", "remote.origin.url"]) ?? `local:${repoRoot}`;
 
   return {
+    repo_root: repoRoot,
     remote_url: remoteUrl,
     repo_name: repoName(remoteUrl, repoRoot),
     default_branch: defaultBranch(repoRoot),

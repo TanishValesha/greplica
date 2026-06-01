@@ -96,7 +96,7 @@ export class SqliteRepository {
   requireRepo(remoteUrl: string): RepoRecord {
     const repo = this.getRepoByRemote(remoteUrl);
     if (!repo) {
-      throw new Error(`Repo is not initialized. Run 'ec init' first for ${remoteUrl}.`);
+      throw new Error(`Repo memory is not ready for ${remoteUrl}. Run 'ec doctor' to diagnose setup.`);
     }
     return repo;
   }
@@ -131,7 +131,7 @@ export class SqliteRepository {
     const scope = this.db
       .prepare("SELECT * FROM graph_scopes WHERE repo_id = ? AND kind = 'working' AND name = 'working'")
       .get(repoId) as GraphScope | undefined;
-    if (!scope) throw new Error("Working scope is missing. Run 'ec init' again.");
+    if (!scope) throw new Error("Working scope is missing. Run 'ec doctor' to diagnose setup.");
     return scope;
   }
 

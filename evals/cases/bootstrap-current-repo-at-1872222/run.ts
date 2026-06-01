@@ -305,23 +305,23 @@ function parseArgs(args: string[]): Args {
 }
 
 function codexBootstrapPrompt(context: RunContext): string {
-  const skill = readFileSync(resolve(context.repoRoot, "skills/engineering-memory/SKILL.md"), "utf8");
+  const skill = readFileSync(resolve(context.repoRoot, "skills/ec-bootstrap/SKILL.md"), "utf8");
   const ec = context.ecCommand.join(" ");
 
-  return `You are running an engineering-memory bootstrap workflow for this repository.
+  return `You are running an Engineering Context bootstrap workflow for this repository.
 
 Use this exact user-facing skill as the workflow contract:
 
-<engineering_memory_skill>
+<ec_bootstrap_skill>
 ${skill}
-</engineering_memory_skill>
+</ec_bootstrap_skill>
 
 Runtime facts for this eval:
 - Current working directory is the target repository root.
 - ENGINEERING_CONTEXT_HOME is already set to an isolated eval directory.
 - Use this ec command exactly: ${ec}
 - Write the final proposal JSON exactly here: ${context.proposalPath}
-- If this repository contains skills/engineering-memory/SKILL.md, treat that file as part of the repository being bootstrapped. Do not ignore it just because the same skill content is included above as the workflow contract.
+- If this repository contains any skills/*/SKILL.md files, including a legacy skills/engineering-memory/SKILL.md file, treat those files as part of the repository being bootstrapped. Do not ignore skill files just because the bootstrap skill content is included above as the workflow contract.
 - If this repository contains graph schema/type/model files that define components, flows, claims, edges, scopes, memberships, or commits, consider whether they are important top-level memory.
 
 Task:
@@ -348,7 +348,7 @@ async function requestJudge(apiKey: string, model: string, input: JudgeInput): P
         {
           role: "system",
           content:
-            "You are an evaluator for engineering-memory bootstrap proposals. Return JSON only. Classify expected nodes, expected edges, and quality issues. Do not calculate numeric scores.",
+            "You are an evaluator for Engineering Context bootstrap proposals. Return JSON only. Classify expected nodes, expected edges, and quality issues. Do not calculate numeric scores.",
         },
         {
           role: "user",

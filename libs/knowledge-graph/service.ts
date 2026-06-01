@@ -5,7 +5,6 @@ import type { Edge } from "./edge.js";
 import type { Component, Flow, Source } from "./schema.js";
 import { GraphContextBuilder } from "./graph-context/context-builder.js";
 import type { EmbeddingStatus, GraphContextResult } from "./graph-context/types.js";
-import { loadLocalEnv } from "../env/load-local-env.js";
 import { defaultDatabasePath, openDatabase } from "../storage/sqlite/db.js";
 import type { SqliteRepository } from "../storage/sqlite/repository.js";
 import { SqliteRepository as SqliteKnowledgeGraphRepository } from "../storage/sqlite/repository.js";
@@ -13,6 +12,7 @@ import { SqliteRepository as SqliteKnowledgeGraphRepository } from "../storage/s
 export type { GraphContextResult } from "./graph-context/types.js";
 
 export interface RepoRef {
+  repo_root?: string;
   remote_url: string;
   repo_name: string;
   default_branch: string;
@@ -79,13 +79,13 @@ export class KnowledgeGraphService {
   }
 
   readGraph(input: RepoRef): GraphReadResult {
-    const repo = this.repository.requireRepo(input.remote_url);
-    return this.repository.readGraphView(repo.id);
+    const initialized = this.ensureInitialized(input);
+    return this.repository.readGraphView(initialized.repo_id);
   }
 
   async contextGraph(input: RepoRef, query: string): Promise<GraphContextResult> {
-    const repo = this.repository.requireRepo(input.remote_url);
-    return this.contextBuilder.build(repo.id, this.repository.readGraphView(repo.id), query, {
+    const initialized = this.ensureInitialized(input);
+    return this.contextBuilder.build(initialized.repo_id, this.repository.readGraphView(initialized.repo_id), query, {
       warnOnCreatedEmbeddings: true,
     });
   }
@@ -102,8 +102,8 @@ export class KnowledgeGraphService {
       throw new Error(`Proposal is invalid:\n${validation.errors.map((error) => `- ${error}`).join("\n")}`);
     }
 
-    const repo = this.repository.requireRepo(input.remote_url);
-    const working = this.repository.requireWorkingScope(repo.id);
+    const initialized = this.ensureInitialized(input);
+    const working = this.repository.requireWorkingScope(initialized.repo_id);
     const memoryCommit = this.repository.createMemoryCommit({
       scope_id: working.id,
       title: normalizedProposal.title,
@@ -111,7 +111,10 @@ export class KnowledgeGraphService {
     });
 
     this.repository.createProposalRecords(working.id, memoryCommit.id, normalizedProposal);
-    const embeddingStatus = await this.contextBuilder.ensureForGraph(repo.id, this.repository.readGraphView(repo.id));
+    const embeddingStatus = await this.contextBuilder.ensureForGraph(
+      initialized.repo_id,
+      this.repository.readGraphView(initialized.repo_id),
+    );
 
     return {
       memory_commit_id: memoryCommit.id,
@@ -127,12 +130,11 @@ export class KnowledgeGraphService {
     };
   }
 
-  private ensureInitialized(input: RepoRef): void {
-    this.repository.requireRepo(input.remote_url);
+  private ensureInitialized(input: RepoRef): InitRepoResult {
+    return this.initRepo(input);
   }
 }
 
 export function createLocalKnowledgeGraphService(): KnowledgeGraphService {
-  loadLocalEnv();
   return new KnowledgeGraphService(new SqliteKnowledgeGraphRepository(openDatabase()));
 }
