@@ -14,9 +14,11 @@ function factoryHome(): string {
 export const droidInstaller: PlatformInstaller = {
   platform: "factory-droid",
   // Factory Droid loads skills and hooks from the user home dir, not the repo.
-  install(_context: PlatformInstallContext): PlatformInstallResult {
+  install(context: PlatformInstallContext): PlatformInstallResult {
     const home = factoryHome();
     const skills = copyBundledSkills(join(home, "skills"));
+    if (!context.hooks) return { skills };
+
     const hookConfigPath = join(home, "hooks.json");
     const command = hookCommand("factory-droid");
     const hookConfig = mergeHookConfig(readJsonObject(hookConfigPath), "factory-droid", command);

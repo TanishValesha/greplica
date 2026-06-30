@@ -26,7 +26,7 @@ That's because it is re-learrning context. Every new session, your agent wastes 
 
 ## Agent Quick Start
 
-Most users should not install Greplica by hand. Paste this into your coding agent from inside the repo you want Greplica to remember.
+Most users should not install Greplica by hand. Paste this into your coding agent from inside the repo you want Greplica to remember. The agent will start with a short setup questionnaire before installing anything, so you can choose hooks, automatic memory updates, and prior-session backfill.
 
 Greplica requires Node.js 22-26.
 
@@ -40,11 +40,12 @@ That prompt runs the full onboarding flow:
 
 | Step | Ask your agent | What happens |
 | --- | --- | --- |
-| 1 | Paste the prompt above | Agent asks about prior sessions, installs the CLI, installs the matching repo integration, and reports hooks/skills status. |
-| 2 | Same prompt continues | Agent bootstraps baseline repo memory. |
-| 3 | If you opted in | Agent shows 1-3 recent same-repo transcripts, bundles them, and stores reconstructable flow/component memory. |
-| 4 | Work normally | The agent can query `greplica graph context "<question>"` before broad exploration. |
-| 5 | Accept hooks, or run `Use greplica-update-working-memory for this session.` manually | Durable decisions, constraints, changed flows, and follow-ups are saved. |
+| 1 | Paste the prompt above | Agent asks how Greplica should guide future agents, whether it should auto-save memory, and whether it should inspect prior sessions. |
+| 2 | Same prompt continues | Agent installs the CLI and matching repo integration using your selected hook and memory-update mode. |
+| 3 | Same prompt continues | Agent bootstraps baseline repo memory. |
+| 4 | If you opted in | Agent shows 1-3 recent same-repo transcripts, bundles them, and stores reconstructable flow/component memory. |
+| 5 | Work normally | The agent can query `greplica graph context "<question>"` before broad exploration. |
+| 6 | Accept hooks, or run `Use greplica-update-working-memory for this session.` manually | Durable decisions, constraints, changed flows, and follow-ups are saved. |
 
 To visualise your current memory in browser, run:
 
@@ -150,6 +151,7 @@ greplica install --platform factory-droid --embedding local
 ```
 
 This copies the Greplica agent skills, configures local embeddings (no API key needed), and initializes the memory database.
+By default, supported platforms install hooks and enable automatic memory updates. Use `--hooks disabled` to skip hook installation, or `--auto-memory disabled` to keep hook guidance without background memory updates.
 
 ### 3. Restart or trust hooks if needed
 
@@ -225,7 +227,7 @@ Switch at any time by rerunning `greplica install` with the new flag.
 ## Commands
 
 ```bash
-greplica install --platform codex|claude|opencode|openhands|factory-droid --embedding local|openai
+greplica install --platform codex|claude|opencode|openhands|factory-droid --embedding local|openai [--hooks enabled|disabled] [--auto-memory enabled|disabled]
 greplica config
 greplica doctor [--check-embeddings]
 greplica graph read
