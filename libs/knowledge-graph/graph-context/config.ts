@@ -113,13 +113,14 @@ export interface DedupeConfig {
 }
 
 const dedupeConfig: DedupeConfig = {
-  similarityThreshold: 0.9 // placeholder — will be replaced by eval sweep results
+  similarityThreshold: 0.75 // placeholder - will be replaced by eval sweep results
 }
 
 export interface GraphContextConfig {
   version: string;
   embedding: EmbeddingConfig;
   ranking: RankingConfig;
+  dedupe:  DedupeConfig;
 }
 
 export const graphContextConfig: GraphContextConfig = {
@@ -131,6 +132,7 @@ export const graphContextConfig: GraphContextConfig = {
     batchSize: 16,
   },
   ranking: rankingConfig,
+  dedupe: dedupeConfig
 };
 
 export function graphContextConfigFromGreplicaConfig(config: GreplicaConfig): GraphContextConfig {

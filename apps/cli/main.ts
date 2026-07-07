@@ -339,6 +339,16 @@ async function runProposalApplyCommand(args: string[]): Promise<void> {
   console.log(`Embeddings checked: ${result.embedding_status.checked_objects}`);
   console.log(`Embeddings created: ${result.embedding_status.created}`);
   console.log(`Embeddings reused: ${result.embedding_status.reused}`);
+  if(result.duplicate_warnings !== undefined && Object.keys(result.duplicate_warnings).length > 0) {
+    for (const [claimId, matches] of Object.entries(result.duplicate_warnings ?? {})) {
+      for (const match of matches) {
+        console.log(`Warning: claim "${claimId}" is similar to existing claim "${match.claim_id}" (similarity: ${match.similarity.toFixed(4)}). Consider using supersedes instead.`);
+      }
+    }
+  } else {
+    console.log("0 warnings");
+  }
+
   markProposalApplyMemoryUpdated(installed.repo_id, proposal);
 }
 

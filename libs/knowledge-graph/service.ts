@@ -1,4 +1,4 @@
-import { normalizeProposal } from "./proposal.js";
+import { MemoryCommitProposal, normalizeProposal } from "./proposal.js";
 import { validateProposal, type ProposalValidationResult } from "./validate-proposal.js";
 import type { Claim } from "./claim.js";
 import type { Edge } from "./edge.js";
@@ -12,6 +12,9 @@ import type { ClaimAnchorAuditResult } from "./code-anchors/types.js";
 import { defaultDatabasePath, openDatabase } from "../storage/sqlite/db.js";
 import type { SqliteRepository } from "../storage/sqlite/repository.js";
 import { SqliteRepository as SqliteKnowledgeGraphRepository } from "../storage/sqlite/repository.js";
+import { bufferToFloat32Array } from "./graph-context/vector.js";
+import { createEmbedder } from "./graph-context/embedder.js";
+import { findSimilarClaims, type SimilarClaimMatch } from "./dedupe/find-similar-claims.js"
 
 export type { GraphContextResult } from "./graph-context/types.js";
 export type { ClaimAnchorAuditResult } from "./code-anchors/types.js";
@@ -43,6 +46,7 @@ export interface ApplyProposalResult {
   memory_commit_id: string;
   scope_id: string;
   embedding_status: EmbeddingStatus;
+  duplicate_warnings: Record<string, SimilarClaimMatch[]>;
   created: {
     components: number;
     flows: number;
@@ -150,6 +154,8 @@ export class KnowledgeGraphService {
     if (!validation.valid) {
       throw new Error(`Proposal is invalid:\n${validation.errors.map((error) => `- ${error}`).join("\n")}`);
     }
+    
+    const duplicateWarnings = await this.checkForDuplicateClaims(initialized.repo_id, normalizedProposal)
 
     const working = this.repository.requireWorkingScope(initialized.repo_id);
     const memoryCommit = this.repository.createMemoryCommit({
@@ -169,6 +175,7 @@ export class KnowledgeGraphService {
       memory_commit_id: memoryCommit.id,
       scope_id: working.id,
       embedding_status: embeddingStatus,
+      duplicate_warnings: duplicateWarnings,
       created: {
         components: normalizedProposal.creates.components?.length ?? 0,
         flows: normalizedProposal.creates.flows?.length ?? 0,
@@ -178,6 +185,47 @@ export class KnowledgeGraphService {
       },
     };
   }
+
+  private async checkForDuplicateClaims(
+  repoId: string,
+  proposal: MemoryCommitProposal
+): Promise<Record<string, SimilarClaimMatch[]>> {
+  const claims = proposal.creates.claims ?? [];
+  if (claims.length === 0) return {};
+
+  const allEmbeddings = this.repository.listGraphObjectEmbeddings({
+    repo_id: repoId,
+    provider: this.contextConfig.embedding.provider,
+    model: this.contextConfig.embedding.model,
+    dimensions: this.contextConfig.embedding.dimensions,
+  });
+
+  const existingVectors = allEmbeddings
+    .filter((record) => record.object_type === "claim")
+    .map((record) => ({
+      claim_id: record.object_id,
+      vector: bufferToFloat32Array(record.embedding),
+    }));
+
+  if (existingVectors.length === 0) return {};
+
+  const embedder = createEmbedder(this.contextConfig.embedding);
+  const warnings: Record<string, SimilarClaimMatch[]> = {};
+
+  for (const claim of claims) {
+    const vector = new Float32Array(await embedder.embed(claim.text));
+    const matches = findSimilarClaims(
+      vector,
+      existingVectors,
+      this.contextConfig.dedupe.similarityThreshold
+    );
+    if (matches.length > 0) {
+      warnings[claim.id] = matches;
+    }
+  }
+
+  return warnings;
+}
 
   private subjectLookup(repoId: string): {
     subjectExists: (type: GraphObjectType, id: string) => boolean;
