@@ -108,6 +108,14 @@ const rankingConfig: RankingConfig = {
   },
 };
 
+export interface DedupeConfig {
+  similarityThreshold: number;
+}
+
+const dedupeConfig: DedupeConfig = {
+  similarityThreshold: 0.9 // placeholder — will be replaced by eval sweep results
+}
+
 export interface GraphContextConfig {
   version: string;
   embedding: EmbeddingConfig;
