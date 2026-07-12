@@ -8,6 +8,7 @@ import {
   writeJson,
 } from "../../lib/common.js";
 import { createEmbedder } from "../../../libs/knowledge-graph/graph-context/embedder.js";
+import { buildClaimDocuments } from "../../../libs/knowledge-graph/graph-context/documents.js";
 import { cosineSimilarity } from "../../../libs/knowledge-graph/graph-context/vector.js";
 import { graphContextConfig } from "../../../libs/knowledge-graph/graph-context/config.js";
 
@@ -82,11 +83,22 @@ async function main(): Promise<void> {
   const seedClaims = readJson<ClaimRecord[]>(seedPath);
   const rubric = readJson<Rubric>(rubricPath);
 
-  // Build claim lookup map
-  const claimMap = new Map<string, string>();
-  for (const claim of seedClaims) {
-    claimMap.set(claim.id, claim.text);
-  }
+  // Use the same claim-document representation that proposal validation compares
+  // against persisted graph-object embeddings.
+  const claimMap = new Map(
+    buildClaimDocuments({
+      components: [],
+      flows: [],
+      claims: seedClaims.map((claim) => ({
+        ...claim,
+        kind: "fact",
+        truth: "source_verified",
+        intent: "intended",
+      })),
+      sources: [],
+      edges: [],
+    }).map((document) => [document.id, document.text]),
+  );
 
   // Verify every pair references valid claim IDs
   const missingIds = new Set<string>();

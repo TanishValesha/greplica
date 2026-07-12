@@ -1,4 +1,4 @@
-import { MemoryCommitProposal, normalizeProposal } from "./proposal.js";
+import { normalizeProposal, type MemoryCommitProposal } from "./proposal.js";
 import { validateProposal, type ProposalValidationResult } from "./validate-proposal.js";
 import type { Claim } from "./claim.js";
 import type { Edge } from "./edge.js";
@@ -16,7 +16,8 @@ import type { SqliteRepository } from "../storage/sqlite/repository.js";
 import { SqliteRepository as SqliteKnowledgeGraphRepository } from "../storage/sqlite/repository.js";
 import { bufferToFloat32Array } from "./graph-context/vector.js";
 import { createEmbedder } from "./graph-context/embedder.js";
-import { findSimilarClaims, type SimilarClaimMatch } from "./dedupe/find-similar-claims.js"
+import { buildClaimDocuments } from "./graph-context/documents.js";
+import { findSimilarClaims, type SimilarClaimMatch } from "./dedupe/find-similar-claims.js";
 
 export type { GraphContextResult } from "./graph-context/types.js";
 export type { ClaimAnchorAuditResult } from "./code-anchors/types.js";
@@ -48,7 +49,6 @@ export interface ApplyProposalResult {
   memory_commit_id: string;
   scope_id: string;
   embedding_status: EmbeddingStatus;
-  duplicate_warnings: Record<string, SimilarClaimMatch[]>;
   created: {
     components: number;
     flows: number;
@@ -56,6 +56,10 @@ export interface ApplyProposalResult {
     sources: number;
     edges: number;
   };
+}
+
+export interface ProposalReviewResult extends ProposalValidationResult {
+  duplicate_warnings: Record<string, SimilarClaimMatch[]>;
 }
 
 export class KnowledgeGraphService {
@@ -136,33 +140,25 @@ export class KnowledgeGraphService {
     return auditClaimCodeAnchors(input.repo_root, claims, new CodeAnchorResolver(), baselineFingerprints);
   }
 
-  async validateProposal(input: RepoRef, proposal: unknown): Promise<ProposalValidationResult> {
+  async validateProposal(input: RepoRef, proposal: unknown): Promise<ProposalReviewResult> {
     const initialized = this.requireRepo(input);
-    const subjectLookup = this.subjectLookup(initialized.repo_id);
-    const normalizedProposal = normalizeProposal(proposal, subjectLookup);
-    const validation = validateProposal(normalizedProposal, subjectLookup);
-    if (!validation.valid) return validation;
-
-    const anchorErrors = anchorAuditErrors(
-      await auditClaimCodeAnchors(input.repo_root, normalizedProposal.creates.claims ?? []),
-    );
-    if (anchorErrors.length === 0) return validation;
+    const normalizedProposal = normalizeProposal(proposal, this.subjectLookup(initialized.repo_id));
+    const validation = await this.validateNormalizedProposal(input, initialized.repo_id, normalizedProposal);
+    if (!validation.valid) return { ...validation, duplicate_warnings: {} };
 
     return {
-      valid: false,
-      errors: anchorErrors,
+      ...validation,
+      duplicate_warnings: await this.checkForDuplicateClaims(initialized.repo_id, normalizedProposal),
     };
   }
 
   async applyProposal(input: RepoRef, proposal: unknown): Promise<ApplyProposalResult> {
     const initialized = this.requireRepo(input);
     const normalizedProposal = normalizeProposal(proposal, this.subjectLookup(initialized.repo_id));
-    const validation = await this.validateProposal(input, normalizedProposal);
+    const validation = await this.validateNormalizedProposal(input, initialized.repo_id, normalizedProposal);
     if (!validation.valid) {
       throw new Error(`Proposal is invalid:\n${validation.errors.map((error) => `- ${error}`).join("\n")}`);
     }
-    
-    const duplicateWarnings = await this.checkForDuplicateClaims(initialized.repo_id, normalizedProposal)
 
     const working = this.repository.requireWorkingScope(initialized.repo_id);
     const memoryCommit = this.repository.createMemoryCommit({
@@ -183,7 +179,6 @@ export class KnowledgeGraphService {
       memory_commit_id: memoryCommit.id,
       scope_id: working.id,
       embedding_status: embeddingStatus,
-      duplicate_warnings: duplicateWarnings,
       created: {
         components: normalizedProposal.creates.components?.length ?? 0,
         flows: normalizedProposal.creates.flows?.length ?? 0,
@@ -194,46 +189,97 @@ export class KnowledgeGraphService {
     };
   }
 
-  private async checkForDuplicateClaims(
-  repoId: string,
-  proposal: MemoryCommitProposal
-): Promise<Record<string, SimilarClaimMatch[]>> {
-  const claims = proposal.creates.claims ?? [];
-  if (claims.length === 0) return {};
+  private async validateNormalizedProposal(
+    input: RepoRef,
+    repoId: string,
+    proposal: MemoryCommitProposal,
+  ): Promise<ProposalValidationResult> {
+    const validation = validateProposal(proposal, this.subjectLookup(repoId));
+    if (!validation.valid) return validation;
 
-  const allEmbeddings = this.repository.listGraphObjectEmbeddings({
-    repo_id: repoId,
-    provider: this.contextConfig.embedding.provider,
-    model: this.contextConfig.embedding.model,
-    dimensions: this.contextConfig.embedding.dimensions,
-  });
-
-  const existingVectors = allEmbeddings
-    .filter((record) => record.object_type === "claim")
-    .map((record) => ({
-      claim_id: record.object_id,
-      vector: bufferToFloat32Array(record.embedding),
-    }));
-
-  if (existingVectors.length === 0) return {};
-
-  const embedder = createEmbedder(this.contextConfig.embedding);
-  const warnings: Record<string, SimilarClaimMatch[]> = {};
-
-  for (const claim of claims) {
-    const vector = new Float32Array(await embedder.embed(claim.text));
-    const matches = findSimilarClaims(
-      vector,
-      existingVectors,
-      this.contextConfig.dedupe.similarityThreshold
+    const anchorErrors = anchorAuditErrors(
+      await auditClaimCodeAnchors(input.repo_root, proposal.creates.claims ?? []),
     );
-    if (matches.length > 0) {
-      warnings[claim.id] = matches;
-    }
+    if (anchorErrors.length === 0) return validation;
+
+    return {
+      valid: false,
+      errors: anchorErrors,
+    };
   }
 
-  return warnings;
-}
+  private async checkForDuplicateClaims(
+    repoId: string,
+    proposal: MemoryCommitProposal,
+  ): Promise<Record<string, SimilarClaimMatch[]>> {
+    const candidateClaims = proposal.creates.claims ?? [];
+    if (candidateClaims.length === 0) return {};
+
+    const activeGraph = this.repository.readGraphView(repoId);
+    if (activeGraph.claims.length === 0) return {};
+
+    const activeClaimIds = new Set(activeGraph.claims.map((claim) => claim.id));
+    const storedVectors = new Map(
+      this.repository
+        .listGraphObjectEmbeddings({
+          repo_id: repoId,
+          provider: this.contextConfig.embedding.provider,
+          model: this.contextConfig.embedding.model,
+          dimensions: this.contextConfig.embedding.dimensions,
+        })
+        .filter((record) => record.object_type === "claim" && activeClaimIds.has(record.object_id))
+        .map((record) => [record.object_id, bufferToFloat32Array(record.embedding)]),
+    );
+
+    const activeDocuments = buildClaimDocuments(activeGraph);
+    const missingActiveDocuments = activeDocuments.filter((document) => !storedVectors.has(document.id));
+    const candidateIds = new Set(candidateClaims.map((claim) => claim.id));
+    const candidateDocuments = buildClaimDocuments({
+      components: [...activeGraph.components, ...(proposal.creates.components ?? [])],
+      flows: [...activeGraph.flows, ...(proposal.creates.flows ?? [])],
+      claims: [...activeGraph.claims, ...candidateClaims],
+      sources: [...activeGraph.sources, ...(proposal.creates.sources ?? [])],
+      edges: [...activeGraph.edges, ...(proposal.creates.edges ?? [])],
+    }).filter((document) => candidateIds.has(document.id));
+
+    const embedder = createEmbedder(this.contextConfig.embedding);
+    const generatedVectors = await embedder.embedBatch([
+      ...missingActiveDocuments.map((document) => document.text),
+      ...candidateDocuments.map((document) => document.text),
+    ]);
+
+    for (const [index, document] of missingActiveDocuments.entries()) {
+      storedVectors.set(document.id, new Float32Array(generatedVectors[index]));
+    }
+
+    const existingVectors = activeDocuments.map((document) => ({
+      claim_id: document.id,
+      vector: storedVectors.get(document.id) as Float32Array,
+    }));
+    const handledSupersedes = new Set(
+      (proposal.creates.edges ?? [])
+        .filter(
+          (edge) =>
+            edge.kind === "supersedes" && edge.from_type === "claim" && edge.to_type === "claim",
+        )
+        .map((edge) => `${edge.from_id}\0${edge.to_id}`),
+    );
+    const warnings: Record<string, SimilarClaimMatch[]> = {};
+
+    for (const [index, document] of candidateDocuments.entries()) {
+      const vectorIndex = missingActiveDocuments.length + index;
+      const matches = findSimilarClaims(
+        new Float32Array(generatedVectors[vectorIndex]),
+        existingVectors,
+        this.contextConfig.dedupe.similarityThreshold,
+      ).filter((match) => !handledSupersedes.has(`${document.id}\0${match.claim_id}`));
+      if (matches.length > 0) {
+        warnings[document.id] = matches;
+      }
+    }
+
+    return warnings;
+  }
 
   private subjectLookup(repoId: string): {
     subjectExists: (type: GraphObjectType, id: string) => boolean;

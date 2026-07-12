@@ -13,7 +13,7 @@ export interface SimilarClaimMatch {
 export function findSimilarClaims(
   candidateVector: Float32Array,
   existing: ClaimEmbeddingCandidate[],
-  threshold: number
+  threshold: number,
 ): SimilarClaimMatch[] {
   const matches: SimilarClaimMatch[] = [];
   for (const item of existing) {
